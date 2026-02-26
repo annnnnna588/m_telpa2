@@ -1,55 +1,23 @@
 /**
  * A-Frame Lightmap Component
  * 
- * Compatible with A-Frame 1.7 and Three.js r173
+ * This component allows the application of lightmaps to GLB models in A-Frame scenes.
+ * It supports multiple lightmaps and materials with advanced configuration options.
  * 
- * Usage:
- * Assign to GLB objects with lightmap data
- * lightmap__YourName="texture: #IDOfImageASSET; key: NameOfMaterial"
- * 
- * Requirements:
- * - A second UV map (uv1) for the 3D model
- * - Lightmap texture asset loaded in A-Frame scene
- * - Material name matching the key parameter
- * 
- * Examples:
- * 
- * 1. Basic single lightmap:
- *    <a-assets>
- *      <img id="roomLightmap" src="lightmaps/room-bake.jpg">
- *      <a-asset-item id="roomModel" src="models/room.glb"></a-asset-item>
- *    </a-assets>
- *    <a-entity gltf-model="#roomModel" 
- *              lightmap="texture: #roomLightmap; key: RoomMaterial">
- *    </a-entity>
- * 
- * 2. Multiple lightmaps for different materials:
- *    <a-assets>
- *      <img id="floorLightmap" src="lightmaps/floor.jpg">
- *      <img id="wallLightmap" src="lightmaps/walls.jpg">
- *      <a-asset-item id="buildingModel" src="models/building.glb"></a-asset-item>
- *    </a-assets>
- *    <a-entity gltf-model="#buildingModel"
- *              lightmap__floor="texture: #floorLightmap; key: Floor"
- *              lightmap__walls="texture: #wallLightmap; key: Walls">
- *    </a-entity>
- * 
- * 3. Material with pipe-separated names (multiple materials sharing one lightmap):
- *    In Blender, name material: "Wood|Furniture|Props"
- *    <a-entity gltf-model="#furniture"
- *              lightmap="texture: #furnitureLightmap; key: Wood">
- *    </a-entity>
- *    This will apply the lightmap to all materials containing "Wood" in their name.
+ * Compatible with A-Frame 1.7 and Three.js r173.
  */
 
 AFRAME.registerComponent("lightmap", {
     multiple: true,
     schema: {
-        // keep as asset so A-Frame resolves the element; it's the <img> element
+        // Texture asset for the lightmap
         texture: { type: "asset", default: "" },
+        // Key to match the material name
         key: { type: "string", default: "" },
+        // Intensity of the lightmap
         intensity: { type: "number", default: 1.0 }
     },
+
     init: function () {
         var self = this;
 
@@ -59,6 +27,7 @@ AFRAME.registerComponent("lightmap", {
             self.data.key
         );
 
+        // Event listener for when the model is loaded
         this.el.addEventListener("model-loaded", () => {
             var textureEl = self.data.texture;
             if (!textureEl || !textureEl.src) {
@@ -68,22 +37,21 @@ AFRAME.registerComponent("lightmap", {
 
             console.log('Creating lightmap texture from image element:', textureEl.src);
 
-            // Create THREE.Texture from the image element for Three.js r173 / A-Frame 1.7
+            // Create a THREE.Texture from the image element
             var texture = new THREE.Texture(textureEl);
             texture.flipY = false;
-            texture.channel = 1; // use uv1
+            texture.channel = 1; // Use uv1
             texture.needsUpdate = true;
 
-            // Color space / encoding for lightmaps in newer Three.js
+            // Configure color space and encoding for lightmaps
             if (typeof THREE.LinearSRGBColorSpace !== 'undefined') {
                 texture.colorSpace = THREE.LinearSRGBColorSpace;
             }
-            // encoding is still useful for some builds
             if (typeof THREE.sRGBEncoding !== 'undefined') {
                 texture.encoding = THREE.sRGBEncoding;
             }
 
-            // sensible texture parameters
+            // Set texture parameters
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
             texture.magFilter = THREE.LinearFilter;
@@ -95,6 +63,7 @@ AFRAME.registerComponent("lightmap", {
             var obj = self.el.object3D;
             var applied = false;
 
+            // Traverse the object and apply the lightmap to matching materials
             obj.traverse((node) => {
                 if (node.isMesh) {
                     var matName = (node.material && node.material.name) ? node.material.name : '';
@@ -108,7 +77,7 @@ AFRAME.registerComponent("lightmap", {
                             node.material.lightMapIntensity = self.data.intensity;
                             node.material.needsUpdate = true;
 
-                            // Ensure shader knows to use the lightmap (some builds require this)
+                            // Ensure shader knows to use the lightmap
                             if (!node.material.defines) node.material.defines = {};
                             node.material.defines.USE_LIGHTMAP = '';
 
@@ -131,17 +100,25 @@ AFRAME.registerComponent("lightmap", {
     },
 });
 
-// Debug component - applies lightmap to ALL materials (useful for testing)
+/**
+ * Debug Component
+ * 
+ * This component applies the lightmap to all materials in the model for testing purposes.
+ */
 AFRAME.registerComponent("lightmap-test", {
     schema: {
+        // Texture asset for the lightmap
         texture: { type: "asset", default: "" },
+        // Intensity of the lightmap
         intensity: { type: "number", default: 1.0 }
     },
+
     init: function () {
         var self = this;
 
         console.log("lightmap-test component initialized", self.data.texture);
 
+        // Event listener for when the model is loaded
         this.el.addEventListener('model-loaded', () => {
             var textureEl = self.data.texture;
             if (!textureEl || !textureEl.src) {
@@ -170,6 +147,7 @@ AFRAME.registerComponent("lightmap-test", {
 
             console.log('Lightmap texture created, applying to ALL materials');
 
+            // Apply the lightmap to all materials in the object
             self.el.object3D.traverse((node) => {
                 if (node.isMesh) {
                     console.log('Applying lightmap to:', node.material && node.material.name);
